@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111822">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Wheat Mask Editor</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <button id="sidebarToggle" class="icon-btn menu-toggle" title="Список пар" aria-label="Открыть список пар">☰</button>
+      <div class="brand-icon" aria-hidden="true">✳</div>
+      <div class="brand-copy"><strong>Wheat Mask</strong><span>Pixel editor</span></div>
+    </div>
+    <div class="top-center" id="fileTitle" title="Имя текущей пары">Выберите пару для редактирования</div>
+    <div class="top-actions">
+      <span id="saveStatus" class="save-status idle"><span class="status-dot"></span>Не загружено</span>
+      <button id="helpBtn" class="icon-btn help-btn" title="Справка" aria-label="Справка">?</button>
+    </div>
+  </header>
+
+  <div class="app-main">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-heading">
+        <div><div class="eyebrow">РАБОЧАЯ ПАПКА</div><h2>Пары изображений</h2></div>
+        <button id="refreshBtn" class="icon-btn" title="Обновить список файлов" aria-label="Обновить список">↻</button>
+      </div>
+      <div class="pair-counter"><strong id="totalCount">0</strong> пар найдено <span id="markedCount" class="reviewed-count"></span></div>
+      <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" autocomplete="off" placeholder="Поиск по имени или ID…"><kbd>/</kbd></label>
+      <div id="warnings" class="warnings" hidden></div>
+      <div class="list-caption">ИЗОБРАЖЕНИЯ <span id="filteredCount"></span></div>
+      <div id="pairList" class="pair-list" role="listbox" aria-label="Пары изображений"></div>
+      <div class="sidebar-footer"><span class="legend-dot"></span>Зелёная метка — маска сохранена в этом браузере.</div>
+    </aside>
+    <div id="sidebarShade" class="sidebar-shade"></div>
+
+    <main class="workspace">
+      <div class="toolbar">
+        <div class="tool-group paint-tools" aria-label="Инструменты рисования">
+          <button id="brushBtn" class="tool active" title="Кисть: добавить белое (B)"><span class="tool-icon">✎</span><span>Кисть</span></button>
+          <button id="eraserBtn" class="tool" title="Ластик: закрасить чёрным (E)"><span class="tool-icon">▰</span><span>Ластик</span></button>
+        </div>
+        <div class="separator"></div>
+        <label class="size-control"><span>Размер</span><input id="brushSize" type="range" min="1" max="120" step="1" value="12" aria-label="Размер кисти в пикселях"><input id="sizeNumber" class="number" type="number" min="1" max="400" value="12" aria-label="Размер кисти числом"><span class="muted-unit">px</span></label>
+        <div class="separator"></div>
+        <div class="tool-group" aria-label="История изменений">
+          <button id="undoBtn" class="icon-btn" title="Отменить (Ctrl/Cmd+Z)" disabled>↶</button>
+          <button id="redoBtn" class="icon-btn" title="Повторить (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <button id="saveBtn" class="primary-btn" title="Сохранить (Ctrl/Cmd+S)" disabled><span>↥</span> Сохранить</button>
+      </div>
+
+      <div class="viewbar">
+        <div class="segmented" aria-label="Режим отображения">
+          <button class="view-button active" data-view="overlay">Наложение</button>
+          <button class="view-button" data-view="rgb">RGB</button>
+          <button class="view-button" data-view="mask">Маска</button>
+        </div>
+        <label class="opacity-control" title="Прозрачность наложения"><span>Маска</span><input id="opacity" type="range" min="0" max="100" value="55"><output id="opacityValue">55%</output></label>
+        <div class="viewbar-spacer"></div>
+        <label class="toggle" title="Показывать сетку на большом увеличении"><input type="checkbox" id="gridToggle"><span>Сетка</span></label>
+        <button id="fitBtn" class="secondary-btn" title="Уместить изображение (0)">⊞ <span>Вписать</span></button>
+      </div>
+
+      <div class="canvas-shell" id="canvasShell">
+        <canvas id="editorCanvas" aria-label="Редактор пиксельной маски"></canvas>
+        <div id="emptyState" class="empty-state"><div class="empty-graphic">✳</div><h2>Точная правка масок</h2><p>Выберите пару слева. Apple Pencil рисует по маске; пальцами перемещайте и увеличивайте изображение.</p></div>
+        <div id="busyOverlay" class="busy-overlay" hidden><div class="spinner"></div><span id="busyText">Загрузка…</span></div>
+        <div id="canvasPill" class="canvas-pill" hidden>—</div>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      </div>
+
+      <footer class="bottom-bar">
+        <div class="navigation-controls">
+          <button id="prevBtn" class="nav-btn" disabled><span>←</span> Назад</button>
+          <div class="position" id="position">— / —</div>
+          <button id="nextBtn" class="nav-btn" disabled>Вперёд <span>→</span></button>
+          <button id="saveNextBtn" class="nav-btn save-next" disabled title="Сохранить маску и открыть следующую">Сохранить →</button>
+        </div>
+        <div class="bottom-spacer"></div>
+        <div class="zoom-controls">
+          <span id="zoomText" class="zoom-value">100%</span>
+          <button id="zoomOut" class="icon-btn" title="Уменьшить">−</button>
+          <button id="zoomIn" class="icon-btn" title="Увеличить">+</button>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<dialog id="unsavedDialog" class="app-dialog">
+  <h2>Несохранённые изменения</h2>
+  <p>Сохранить исправленную маску поверх существующего PNG перед переходом к другой паре?</p>
+  <div class="dialog-actions">
+    <button id="cancelNav" class="secondary-btn">Отмена</button>
+    <button id="discardNav" class="danger-btn">Без сохранения</button>
+    <button id="saveNav" class="primary-btn">Сохранить и перейти</button>
+  </div>
+</dialog>
+
+<dialog id="helpDialog" class="app-dialog help-dialog">
+  <h2>Как пользоваться редактором</h2>
+  <p><strong>Apple Pencil:</strong> рисование белой кистью или чёрным ластиком. <strong>Пальцы:</strong> перемещение одним пальцем, масштабирование двумя.</p>
+  <p><strong>Мышь:</strong> левая кнопка рисует, правая или средняя перемещает. Колёсико масштабирует.</p>
+  <div class="shortcuts">
+    <span><kbd>B</kbd> Кисть</span><span><kbd>E</kbd> Ластик</span>
+    <span><kbd>Ctrl/Cmd+Z</kbd> Отмена</span><span><kbd>Ctrl/Cmd+Shift+Z</kbd> Повтор</span>
+    <span><kbd>Ctrl/Cmd+S</kbd> Сохранить</span><span><kbd>0</kbd> Вписать</span>
+    <span><kbd>← / →</kbd> Другая пара</span><span><kbd>/</kbd> Поиск</span>
+  </div>
+  <p class="help-tip">Рисование меняет только градации серого в MASK. Размеры и пиксели вне мазков остаются прежними. Сохранение <strong>перезаписывает исходный файл</strong>. Изменения других программ проверяются перед записью.</p>
+  <div class="dialog-actions"><button id="closeHelp" class="primary-btn">Понятно</button></div>
+</dialog>
+<script src="/app.js" defer></script>
+</body>
+</html>
