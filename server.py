@@ -151,16 +151,24 @@ def save_mask_atomic(path: Path, new_values: bytes, expected_revision: str) -> t
         result, modified = updated_mask(original_image, new_values)
         if not modified:
             return False, expected_revision
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.wheatmask_', suffix='.png', delete=False) as f:
-            temporary = Path(f.name)
+        temporary: Path | None = None
         try:
-            # Do not alter the existing file until the new PNG is fully written.
+            # Do not alter the original mask until a complete PNG is on disk.
             options = {}
             if 'icc_profile' in original_image.info:
                 options['icc_profile'] = original_image.info['icc_profile']
-            result.save(temporary, format='PNG', **options)
-            with temporary.open('rb') as f:
-                os.fsync(f.fileno())
+            # IMPORTANT (Windows): fsync() must receive a WRITABLE descriptor.
+            # The previous version reopened the PNG in 'rb' and called fsync()
+            # on that read-only descriptor, causing OSError: [Errno 9].
+            with tempfile.NamedTemporaryFile(
+                mode='w+b', dir=path.parent, prefix='.wheatmask_',
+                suffix='.png', delete=False,
+            ) as output:
+                temporary = Path(output.name)
+                result.save(output, format='PNG', **options)
+                output.flush()
+                os.fsync(output.fileno())
+            # The handle is closed here, allowing os.replace on Windows.
             # Recheck right before replacing (reject competing edits).
             if digest(path.read_bytes()) != expected_revision:
                 raise RevisionConflict('MASK изменился во время сохранения. Попробуйте перечитать файл.')
@@ -168,7 +176,7 @@ def save_mask_atomic(path: Path, new_values: bytes, expected_revision: str) -> t
             os.replace(temporary, path)
             return True, new_revision
         finally:
-            if temporary.exists():
+            if temporary is not None and temporary.exists():
                 temporary.unlink()
 
 
