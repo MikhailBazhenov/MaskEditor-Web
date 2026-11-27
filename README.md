@@ -23,7 +23,7 @@ start_windows.bat "D:\Dataset"
 3. Запустите:
 
 ```bash
-./start_mac.command "/Users/USERNAME/Dataset"
+bash start_mac.command "/Users/USERNAME/Dataset"
 ```
 
 Если не передавать путь к папке, будут открыты две демонстрационные пары из `sample_data`. При первом запуске Pillow устанавливается автоматически.
